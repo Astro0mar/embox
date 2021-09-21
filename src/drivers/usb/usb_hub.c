@@ -37,6 +37,7 @@ static DLIST_DEFINE(usb_hubs_list);
 static DLIST_DEFINE(usb_devs_list);
 #if USE_THREAD
 static struct thread *usb_hubs_thread;
+static volatile int port_status_changed = 0;
 #endif
 
 static int usb_hub_port_init(struct usb_hub *hub, struct usb_dev *dev,
@@ -335,15 +336,17 @@ static void usb_hubs_enumerate_if_needed(void) {
 
 static inline void *usb_hub_event_hnd(void *arg) {
 	while (1) {
+		SCHED_WAIT_TIMEOUT(port_status_changed, 10000);
+		port_status_changed = 0;
 		usb_hubs_enumerate_if_needed();
-		//SCHED_WAIT_TIMEOUT(0, USB_HUBS_HANDLE_INTERVAL);
-		usleep(USB_HUBS_HANDLE_INTERVAL);
+		//usleep(USB_HUBS_HANDLE_INTERVAL);
 	}
 
 	return NULL;
 }
 
 void usb_hubs_notify(void) {
+	port_status_changed = 1;
 	sched_wakeup(&usb_hubs_thread->schedee);
 }
 
